@@ -1,0 +1,6 @@
+Pokemon HTML
+div id="globalWrapper"
+	div id="column-content"
+		div id="content" class="mw-body" role="main"
+			div id="mw-content-text" ckass="mw-content-ltr" dir="ltr" lang="en"
+			
