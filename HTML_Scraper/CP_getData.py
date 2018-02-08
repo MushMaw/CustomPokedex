@@ -12,6 +12,7 @@ class Pokemon:
 		self.height = -1
 		self.weight = -1
 		# EV/EXP info
+		self.maxExp = 0
 		self.expRate = ""
 		self.evYield = []
 		self.expYield = -1

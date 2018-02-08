@@ -17,13 +17,15 @@ def getInfoForPokemon(url, newMon):
 	print("Connected")
 	gatherTableInfo(resp, newMon)
 		
-def gatherTableInfo(resp, PokemonDict):
+def gatherTableInfo(resp, newMon):
 	soup = BeautifulSoup(resp, "lxml")
 	
-	firstDexTableTag = soup.find("table", {"class":"dextable"})
-	parseDexTable(firstDexTableTag, PokemonDict)
+	dexTableTag = soup.find("table", {"class":"dextable"})
+	parseFirstDexTable(dexTableTag, newMon)
+	dexTableTag = dexTableTag.find_next_sibling("table", {"class":"dextable"})
+	parseSecondDexTable(dexTableTag, newMon)
 	
-def parseDexTable(dexTableTag, newMon):
+def parseFirstDexTable(dexTableTag, newMon):
 	tableRow = dexTableTag.find("tr").find_next_sibling()
 	checkRow = tableRow.find("td").find_next_sibling()
 	newMon.name = checkRow.getText()
@@ -39,33 +41,86 @@ def parseDexTable(dexTableTag, newMon):
 	tableRow = findSibling_n(tableRow, 2, None)
 	td_Tag = tableRow.find("td")
 	newMon.category = td_Tag.getText()
+	
 	td_Tag = td_Tag.find_next_sibling()
 	getStature(td_Tag, newMon.forms, newMon.height, "h")
 	td_Tag = td_Tag.find_next_sibling()
 	getStature(td_Tag, newMon.forms, newMon.weight, "w")
 	
+	td_Tag = td_Tag.find_next_sibling()
+	catchRateString = td_Tag.getText().replace(" ", "")
+	getCatchRate(catchRateString, newMon)
+	
+	td_Tag = td_Tag.find_next_sibling()
+	newMon.eggSteps = td_Tag.getText()
+
+def parseSecondDexTable(dexTableTag, newMon):
+	tableRow = dexTableTag.find("tr")
+	tableRow = findSibling_n(tableRow, 3, None)
+	td_Tag = tableRow.find("td")
+	getExpMaxAndRate(td_Tag.getText(), newMon)
+	
+	td_Tag = td_Tag.find_next_sibling()
+	newMon.baseHappiness = td_Tag.getText()
+	
+	td_Tag = td_Tag.find_next_sibling()
+	getEffortValues(baseString, newMon)
+
+def getExpMaxAndRate(expString, newMon):
+	maxExp_reg = "([0-9]*,*[0-9]*,*[0-9]*) Points"
+	m = re.search(maxExp_reg, expString)
+	maxExp = m.group(1)
+	newMon.maxExp = int(maxExp.replace(",", ""))
+	
+	expString = expString.replace(m.group(0), "")
+	newMon.expRate = expString
+
+def getEffortValues(baseString, newMon):
+	
+
 def getStature(checkTag, formList, outputDict, mode):
 	baseString = checkTag.getText()
-	print(baseString)
 	n = len(formList)
 	formatList = []
 	if (mode == "h"):
-		formatList = Pokemon.HEIGHT_FORMATS
+		formatList = [Pokemon.HEIGHT_IMPERIAL_FORMAT, Pokemon.DECIMAL_FORMAT + Pokemon.HEIGHT_METRIC]
 	else:
 		for measure in Pokemon.WEIGHT_MEASURES:
-			formatList.append(Pokemon.WEIGHT_FORMAT + measure)
+			formatList.append(Pokemon.DECIMAL_FORMAT + measure)
 	for count, format in enumerate(formatList):
 		regExp = HW_buildRegExp(format, n)
 		m = re.search(regExp, baseString)
+		if (m == None):
+			regExp = format
+			m = re.search(regExp, baseString)
 		for i in range(n):
 			key = formList[i]
-			value = m.group(i+1)
+			if (regExp == format):
+				groupIndex = 1
+			else:
+				groupIndex = i+1
+			value = m.group(groupIndex)
 			if (mode == "w"):
 				value += Pokemon.WEIGHT_MEASURES[count]
 			if (key not in outputDict):
 				outputDict[key] = [value]
 			else:
 				outputDict[key].append(value)
+
+def getCatchRate(baseString, newMon):
+	m = re.search(Pokemon.CATCH_RATE_FORMAT, baseString)
+	while (m != None):
+		key = m.group(2)
+		value = m.group(1)
+		newMon.captureRate[key] = value
+		baseString = baseString.replace(m.group(0), "")
+		m = re.search(Pokemon.CATCH_RATE_FORMAT, baseString)
+		print("That's one")
+	if (len(newMon.captureRate) == 0):
+		numExp = "([0-9]+)"
+		m = re.search(numExp, baseString)
+		if (m != None):
+			newMon.captureRate["all"] = m.group(1)
 
 def HW_buildRegExp(regUnit, n):
 	spacing = " / "
@@ -137,8 +192,8 @@ def openURL(url):
 	return -1
 
 if (__name__ == "__main__"):
-	for i in range(5):
-		dexNum = 2
+	for i in range(1):
+		dexNum = i+800
 		newMon = Pokemon()
 		newMon.dexNumber = dexNum
 		url = "https://www.serebii.net/pokedex-sm/" + newMon.dexToString() + ".shtml"
