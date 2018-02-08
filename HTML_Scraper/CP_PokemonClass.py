@@ -13,26 +13,22 @@ class Pokemon:
 	
 	def __init__(self):
 		# Dextable info
-		self.name = ""
-		self.category = ""
-		self.forms = []
-		self.types = {}
-		self.genderChances = {}
-		self.dexNumber = 0
-		self.height = {}
-		self.weight = {}
-		self.eggSteps = {}
-		self.captureRate = {}
-		
-		self.expRate = ""
-		self.maxExp = -1
-		self.expYield = -1
-		self.evYield = {}
-		for stat in Pokemon.STAT_NAMES:
-			self.evYield[stat] = 0
-			
-		self.eggGroup = ""
-		self.baseHappiness = -1
+		self.name = "" #
+		self.category = "" #
+		self.forms = [] #
+		self.types = {} #
+		self.genderChances = {} #
+		self.dexNumber = 0 #
+		self.height = {} #
+		self.weight = {} #
+		self.eggSteps = {} #
+		self.captureRate = {} #
+		self.expRate = ""#
+		self.maxExp = -1#
+		self.evYield = {} #
+		self.baseHappiness = -1 #
+		self.stats = {}
+		self.statTotal = 0
 		
 	def dexToString(self):
 		output = str(self.dexNumber)
@@ -42,12 +38,21 @@ class Pokemon:
 		
 	def printThis(self):
 		print(self.name + "  |  " + self.category + "  |  #" + self.dexToString())
-		for each in self.forms:
+		for each in self.types:
 			print(each + " : ", self.types[each])
 		for each in self.genderChances:
 			print(each + " : " + self.genderChances[each])
 		for each in self.captureRate:
 			print(each + " : " + self.captureRate[each])
 		print("Base Egg Steps: " + self.eggSteps)
+		print("Max EXP: " + str(self.maxExp) + " at a rate of " + self.expRate)
+		print("Base Happiness: ", self.baseHappiness)
+		print(self.evYield)
+		print(self.stats)
+		print(self.statTotal)
+		print(self.forms)
 		
-		
+class MegaPokemon(Pokemon):
+
+	def __init__(self):
+		super().__init__()

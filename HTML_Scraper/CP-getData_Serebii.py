@@ -6,7 +6,7 @@ Module: getData (Serebii)
 
 from bs4 import BeautifulSoup
 from urllib.request import Request, urlopen
-from CP_PokemonClass import Pokemon
+from CP_PokemonClass import Pokemon, MegaPokemon
 import re
 
 
@@ -20,12 +20,20 @@ def getInfoForPokemon(url, newMon):
 def gatherTableInfo(resp, newMon):
 	soup = BeautifulSoup(resp, "lxml")
 	
-	dexTableTag = soup.find("table", {"class":"dextable"})
-	parseFirstDexTable(dexTableTag, newMon)
-	dexTableTag = dexTableTag.find_next_sibling("table", {"class":"dextable"})
-	parseSecondDexTable(dexTableTag, newMon)
+	pictureTableTag = soup.find("table", {"class":"dextable"})
+	parsePictureTable(pictureTableTag, newMon)
 	
-def parseFirstDexTable(dexTableTag, newMon):
+	happinessTableTag = pictureTableTag.find_next_sibling("table", {"class":"dextable"})
+	parseHappinessTable(happinessTableTag, newMon)
+	
+	formTable = soup.find("td", text="Alternate Forms").parent.find_next_sibling()
+	formTable = formTable.find("tr")
+	findMissedForms(formTable, newMon)
+	
+	statsTag = soup.find("a", {"name":"stats"}).find_next_sibling()
+	parseStatsTable(statsTag, newMon)
+	
+def parsePictureTable(dexTableTag, newMon):
 	tableRow = dexTableTag.find("tr").find_next_sibling()
 	checkRow = tableRow.find("td").find_next_sibling()
 	newMon.name = checkRow.getText()
@@ -54,7 +62,7 @@ def parseFirstDexTable(dexTableTag, newMon):
 	td_Tag = td_Tag.find_next_sibling()
 	newMon.eggSteps = td_Tag.getText()
 
-def parseSecondDexTable(dexTableTag, newMon):
+def parseHappinessTable(dexTableTag, newMon):
 	tableRow = dexTableTag.find("tr")
 	tableRow = findSibling_n(tableRow, 3, None)
 	td_Tag = tableRow.find("td")
@@ -64,7 +72,34 @@ def parseSecondDexTable(dexTableTag, newMon):
 	newMon.baseHappiness = td_Tag.getText()
 	
 	td_Tag = td_Tag.find_next_sibling()
-	getEffortValues(baseString, newMon)
+	getEffortValues(td_Tag.getText(), newMon)
+
+def findMissedForms(dexTableTag, newMon):
+	allForms = dexTableTag.find_all("td")
+	for formTag in allForms:
+		form = formTag.getText()
+		if form not in newMon.forms:
+			newMon.forms.append(form)
+	
+def parseStatsTable(dexTableTag, newMon):
+	row = dexTableTag.find("tr").find_next_sibling()
+	statNameOrder = []
+	column = row.find("td").find_next_sibling()
+	statOrder = []
+	while (column != None):
+		statOrder.append(column.getText().lower())
+		column = column.find_next_sibling()
+	print(statOrder)
+	row = row.find_next_sibling()
+	column = row.find("td").find_next_sibling()
+	i = 0
+	while (column != None):
+		statValue = int(column.getText())
+		newMon.stats[statOrder[i]] = statValue
+		newMon.statTotal += statValue
+		i += 1
+		column = column.find_next_sibling()
+	
 
 def getExpMaxAndRate(expString, newMon):
 	maxExp_reg = "([0-9]*,*[0-9]*,*[0-9]*) Points"
@@ -76,7 +111,37 @@ def getExpMaxAndRate(expString, newMon):
 	newMon.expRate = expString
 
 def getEffortValues(baseString, newMon):
+	subStrings = getSubstrings(baseString.lower(), newMon.forms)
+	evRegExp = "([0-9]+) %s point\(s\)"
+	for count, subStr in enumerate(subStrings):
+		formEv = {}
+		for stat in Pokemon.STAT_NAMES:
+			statReg = evRegExp % stat
+			m = re.search(statReg, subStr)
+			if (m != None):
+				value = int(m.group(1))
+				formEv[stat] = value
+			else:
+				formEv[stat] = 0
+		if (len(subStrings) == 1):
+			newMon.evYield[newMon.name] = formEv
+		else:
+			newMon.evYield[newMon.forms[count]] = formEv
 	
+def getSubstrings(baseString, splitByList):
+	formIndices = []
+	for form in newMon.forms:
+		index = baseString.find(form)
+		if (index == -1):
+			return [baseString]
+		formIndices.append(index)
+	formIndices.append(len(baseString) - 1)
+	subStrings = []
+	for i in range(len(newMon.forms)):
+		j = formIndices[i]
+		k = formIndices[i+1]
+		subStrings.append(baseString[j:k])
+	return subStrings
 
 def getStature(checkTag, formList, outputDict, mode):
 	baseString = checkTag.getText()
@@ -115,7 +180,6 @@ def getCatchRate(baseString, newMon):
 		newMon.captureRate[key] = value
 		baseString = baseString.replace(m.group(0), "")
 		m = re.search(Pokemon.CATCH_RATE_FORMAT, baseString)
-		print("That's one")
 	if (len(newMon.captureRate) == 0):
 		numExp = "([0-9]+)"
 		m = re.search(numExp, baseString)
@@ -193,7 +257,7 @@ def openURL(url):
 
 if (__name__ == "__main__"):
 	for i in range(1):
-		dexNum = i+800
+		dexNum = i+681
 		newMon = Pokemon()
 		newMon.dexNumber = dexNum
 		url = "https://www.serebii.net/pokedex-sm/" + newMon.dexToString() + ".shtml"
