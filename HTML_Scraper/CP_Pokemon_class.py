@@ -30,6 +30,8 @@ class Pokemon:
 		self.stats = {}
 		self.statTotal = 0
 		
+		self.megaEvos = {}
+		
 	def dexToString(self):
 		output = str(self.dexNumber)
 		while (len(output) < 3):
@@ -48,9 +50,14 @@ class Pokemon:
 		print("Max EXP: " + str(self.maxExp) + " at a rate of " + self.expRate)
 		print("Base Happiness: ", self.baseHappiness)
 		print(self.evYield)
-		print(self.stats)
-		print(self.statTotal)
+		for key in self.stats:
+			print(key + ":", end=" ")
+			for s in self.stats[key]:
+				print(s + ": " + str(self.stats[key][s]))
 		print(self.forms)
+		for m in self.megaEvos:
+			print("MEGA: " + self.megaEvos[m].name)
+			
 		
 class MegaPokemon(Pokemon):
 

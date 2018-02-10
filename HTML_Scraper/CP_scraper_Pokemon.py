@@ -8,33 +8,77 @@ from bs4 import BeautifulSoup
 from urllib.request import Request, urlopen
 from CP_PokemonClass import Pokemon, MegaPokemon
 import re
+import sys
 
 
-def getInfoForPokemon(url, newMon):
+def getInfoForPokemon(url):
 	resp = openURL(url)
 	if (resp == -1):
 		return resp
 	print("Connected")
+	newMon = Pokemon()
 	gatherTableInfo(resp, newMon)
 		
 def gatherTableInfo(resp, newMon):
 	soup = BeautifulSoup(resp, "lxml")
 	
 	pictureTableTag = soup.find("table", {"class":"dextable"})
-	parsePictureTable(pictureTableTag, newMon)
+	parsePictureTable(pictureTableTag, newMon, False)
 	
 	happinessTableTag = pictureTableTag.find_next_sibling("table", {"class":"dextable"})
 	parseHappinessTable(happinessTableTag, newMon)
 	
-	formTable = soup.find("td", text="Alternate Forms").parent.find_next_sibling()
-	formTable = formTable.find("tr")
-	findMissedForms(formTable, newMon)
+	formTable = soup.find("td", text="Alternate Forms")
+	if (formTable != None):
+		formTable = formTable.parent.find_next_sibling()
+		formTable = formTable.find("tr")
+		findMissedForms(formTable, newMon)
 	
 	statsTag = soup.find("a", {"name":"stats"}).find_next_sibling()
-	parseStatsTable(statsTag, newMon)
+	newMon.stats[newMon.name] = parseStatsTable(statsTag)
 	
-def parsePictureTable(dexTableTag, newMon):
+	# Check for megas.
+	megaSoup = soup.find("a", {"name":"mega"})
+	if (megaSoup != None):
+		megaSoup = megaSoup.find_next_sibling()
+		while (megaSoup != None):
+			newMega = MegaPokemon()
+			parsePictureTable(megaSoup, newMega, True)
+			megaSoup = megaSoup.find_next_sibling("a", {"name":"megastats"})
+			megaSoup = megaSoup.find_next_sibling()
+			newMega.stats[newMega.name] = parseStatsTable(megaSoup)
+			newMon.megaEvos[newMega.name] = newMega
+			megaSoup = megaSoup.find_next_sibling("table", {"class":"dextable"})
+			
+	findFormStats(soup, newMon)
+
+def findFormStats(soup, newMon):
+	baseSearchString = "Stats - "
+	altFormString = "Alternate Forms"
+	terms = newMon.forms[:] + [altFormString]
+	for count, t in enumerate(terms):
+		searchString = baseSearchString + t
+		statsTable = soup.find("b", text=re.compile(searchString))
+		if (statsTable != None):
+			# Navigate over to statsTable
+			statsTable = statsTable.parent.parent.parent
+			newStats = parseStatsTable(statsTable)
+			if (count == len(terms) - 1):
+				# Alternate Forms table found, so apply distribution
+				# to all alternate forms.
+				for form in newMon.forms:
+					if (form != newMon.name):
+						newMon.stats[form] = newStats
+			else:
+				newMon.stats[t] = newStats
+	for form in newMon.forms:
+		if (form not in newMon.stats):
+			newMon.stats[form] = newMon.stats[newMon.name]
+
+def parsePictureTable(dexTableTag, newMon, isMega):
 	tableRow = dexTableTag.find("tr").find_next_sibling()
+	if (isMega):
+		tableRow = tableRow.find_next_sibling()
 	checkRow = tableRow.find("td").find_next_sibling()
 	newMon.name = checkRow.getText()
 	
@@ -81,7 +125,7 @@ def findMissedForms(dexTableTag, newMon):
 		if form not in newMon.forms:
 			newMon.forms.append(form)
 	
-def parseStatsTable(dexTableTag, newMon):
+def parseStatsTable(dexTableTag):
 	row = dexTableTag.find("tr").find_next_sibling()
 	statNameOrder = []
 	column = row.find("td").find_next_sibling()
@@ -89,16 +133,16 @@ def parseStatsTable(dexTableTag, newMon):
 	while (column != None):
 		statOrder.append(column.getText().lower())
 		column = column.find_next_sibling()
-	print(statOrder)
 	row = row.find_next_sibling()
 	column = row.find("td").find_next_sibling()
 	i = 0
+	newStats = {}
 	while (column != None):
 		statValue = int(column.getText())
-		newMon.stats[statOrder[i]] = statValue
-		newMon.statTotal += statValue
+		newStats[statOrder[i]] = statValue
 		i += 1
 		column = column.find_next_sibling()
+	return newStats
 	
 
 def getExpMaxAndRate(expString, newMon):
@@ -256,10 +300,16 @@ def openURL(url):
 	return -1
 
 if (__name__ == "__main__"):
-	for i in range(1):
-		dexNum = i+681
+	for i in range(10):
+		if (len(sys.argv) > 1):
+			dexNum = i + int(sys.argv[1])
+		else:
+			dexNum = i+800
 		newMon = Pokemon()
 		newMon.dexNumber = dexNum
 		url = "https://www.serebii.net/pokedex-sm/" + newMon.dexToString() + ".shtml"
-		getInfoForPokemon(url, newMon)
-		newMon.printThis()
+		if (getInfoForPokemon(url, newMon) == -1):
+			# Log the connection error.
+			pass
+		else:
+			newMon.printThis()
