@@ -6,17 +6,16 @@ Module: getData (Serebii)
 
 from bs4 import BeautifulSoup
 from urllib.request import Request, urlopen
-from CP_PokemonClass import Pokemon, MegaPokemon
+from CP_Pokemon_class import Pokemon, MegaPokemon
 import re
 import sys
 
 
-def getInfoForPokemon(url):
+def getInfoForPokemon(url, newMon):
 	resp = openURL(url)
 	if (resp == -1):
 		return resp
 	print("Connected")
-	newMon = Pokemon()
 	gatherTableInfo(resp, newMon)
 		
 def gatherTableInfo(resp, newMon):
@@ -300,15 +299,16 @@ def openURL(url):
 	return -1
 
 if (__name__ == "__main__"):
-	for i in range(10):
+	for i in range(151):
 		if (len(sys.argv) > 1):
 			dexNum = i + int(sys.argv[1])
 		else:
-			dexNum = i+800
+			dexNum = i
 		newMon = Pokemon()
 		newMon.dexNumber = dexNum
 		url = "https://www.serebii.net/pokedex-sm/" + newMon.dexToString() + ".shtml"
 		if (getInfoForPokemon(url, newMon) == -1):
+			print(url)
 			# Log the connection error.
 			pass
 		else:
